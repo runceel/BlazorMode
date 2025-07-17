@@ -61,6 +61,12 @@
 - ユーザーが繰り返し訪問するアプリケーション
 - 最適なユーザーエクスペリエンスを提供したい
 
+**⚠️ 注意：実装とコストの複雑さ**
+- **開発コスト**: Server と WebAssembly の両方に対応する必要があり、実装難易度が大幅に上がる
+- **運用コスト**: サーバーリソースとクライアントリソースの両方を管理する必要がある
+- **デバッグ**: 2つの異なる実行環境でのテストと問題の切り分けが必要
+- **バンドルサイズ**: WebAssembly のダウンロードが必要で、初期表示は早いが総データ量は多い
+
 ## Blazor WebAssembly Standalone
 
 ### **Blazor WebAssembly Standalone**
@@ -85,36 +91,47 @@
 
 ## 選択フロー
 
-```
-アプリケーションを作成したい
-│
-├─ サーバーが不要 / 静的ホスティングのみ
-│  └─ Blazor WebAssembly Standalone
-│
-├─ サーバーありの Web アプリケーション
-│  │
-│  ├─ インタラクティブ機能が不要
-│  │  └─ Static SSR
-│  │
-│  ├─ インタラクティブ機能が必要
-│  │  │
-│  │  ├─ 単一のレンダーモードで統一したい
-│  │  │  │
-│  │  │  ├─ サーバーリソース重視 / セキュリティ重視
-│  │  │  │  └─ Interactive Server（グローバル）
-│  │  │  │
-│  │  │  ├─ オフライン対応 / サーバー負荷軽減
-│  │  │  │  └─ Interactive WebAssembly（グローバル）
-│  │  │  │
-│  │  │  └─ 最適なUX（初回速度 + 継続性能）
-│  │  │     └─ Interactive Auto（グローバル）
-│  │  │
-│  │  └─ ページごとに最適化したい
-│  │     └─ Blazor Web App（混在モード）
-│  │        ├─ 静的ページ → Static SSR
-│  │        ├─ DB操作ページ → Interactive Server
-│  │        ├─ オフライン対応ページ → Interactive WebAssembly
-│  │        └─ 汎用ページ → Interactive Auto
+```mermaid
+flowchart TD
+    Start([アプリケーションを作成したい]) --> ServerChoice{サーバーが必要？}
+    
+    ServerChoice -->|サーバーが不要<br/>静的ホスティングのみ| Standalone[Blazor WebAssembly<br/>Standalone]
+    
+    ServerChoice -->|サーバーありの<br/>Web アプリケーション| Interactive{インタラクティブ機能が必要？}
+    
+    Interactive -->|インタラクティブ機能が不要| StaticSSR[Static SSR]
+    
+    Interactive -->|インタラクティブ機能が必要| RenderMode{レンダーモードの選択}
+    
+    RenderMode -->|単一のレンダーモードで統一したい| GlobalMode{グローバルモードの選択}
+    
+    GlobalMode -->|サーバーリソース重視<br/>セキュリティ重視| ServerGlobal[Interactive Server<br/>グローバル]
+    
+    GlobalMode -->|オフライン対応<br/>サーバー負荷軽減| WasmGlobal[Interactive WebAssembly<br/>グローバル]
+    
+    GlobalMode -->|最適なUX<br/>初回速度 + 継続性能| AutoGlobal[Interactive Auto<br/>グローバル]
+    
+    RenderMode -->|ページごとに最適化したい| MixedMode[Blazor Web App<br/>混在モード]
+    
+    MixedMode --> StaticPage[静的ページ → Static SSR]
+    MixedMode --> DBPage[DB操作ページ → Interactive Server]
+    MixedMode --> OfflinePage[オフライン対応ページ → Interactive WebAssembly]
+    MixedMode --> GeneralPage[汎用ページ → Interactive Auto]
+    
+    %% 警告の追加
+    AutoGlobal -.->|⚠️ 注意| CostWarning[開発・運用コストが高い<br/>実装難易度が大幅に上がる]
+    GeneralPage -.->|⚠️ 注意| CostWarning
+    
+    %% スタイリング
+    classDef warning fill:#fff2cc,stroke:#d6b656,stroke-width:2px
+    classDef autoMode fill:#ffe6e6,stroke:#ff6b6b,stroke-width:2px
+    classDef decision fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    classDef endpoint fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    
+    class CostWarning warning
+    class AutoGlobal,GeneralPage autoMode
+    class ServerChoice,Interactive,RenderMode,GlobalMode decision
+    class Standalone,StaticSSR,ServerGlobal,WasmGlobal,StaticPage,DBPage,OfflinePage endpoint
 ```
 
 ## インタラクティブ性の適用範囲
@@ -131,18 +148,18 @@
 
 ## レンダーモードの選択基準
 
-| 要件 | 推奨選択肢 |
-|------|-----------|
-| 高速な初期読み込み | Static SSR |
-| SEO 最適化 | Static SSR |
-| オフライン動作 | Interactive WebAssembly / Blazor WebAssembly Standalone |
-| 完全な .NET API アクセス | Interactive Server |
-| リアルタイム通信 | Interactive Server |
-| サーバー負荷軽減 | Interactive WebAssembly / Blazor WebAssembly Standalone |
-| 静的ホスティング | Interactive WebAssembly / Blazor WebAssembly Standalone |
-| 最適なUX（初回＋継続） | Interactive Auto |
-| セキュリティ重視 | Interactive Server |
-| サーバーレス | Blazor WebAssembly Standalone |
+| 要件 | 推奨選択肢 | 実装難易度 |
+|------|-----------|-----------|
+| 高速な初期読み込み | Static SSR | 低 |
+| SEO 最適化 | Static SSR | 低 |
+| オフライン動作 | Interactive WebAssembly / Blazor WebAssembly Standalone | 中 |
+| 完全な .NET API アクセス | Interactive Server | 低 |
+| リアルタイム通信 | Interactive Server | 中 |
+| サーバー負荷軽減 | Interactive WebAssembly / Blazor WebAssembly Standalone | 中 |
+| 静的ホスティング | Interactive WebAssembly / Blazor WebAssembly Standalone | 中 |
+| 最適なUX（初回＋継続） | Interactive Auto | **高** |
+| セキュリティ重視 | Interactive Server | 低 |
+| サーバーレス | Blazor WebAssembly Standalone | 中 |
 
 ## 実践的な使い分け例
 
@@ -157,9 +174,9 @@
 - **ショッピングカート**: Interactive WebAssembly（オフライン対応）
 
 ### 3. **業務アプリケーション**
-- **選択肢**: Blazor Web App（Interactive Auto グローバル）
-- **ダッシュボード**: Interactive Auto（バランス重視）
-- **データ編集画面**: Interactive Auto（サーバー↔クライアント自動切り替え）
+- **選択肢**: Blazor Web App（Interactive Server グローバル）
+- **推奨理由**: 業務アプリケーションは通常、データベースアクセスが頻繁でセキュリティが重要。Interactive Auto は開発・運用コストが高いため、特別な要件がない限り Interactive Server を推奨
+- **備考**: 繰り返し利用される業務アプリで、かつ開発・運用リソースが十分にある場合のみ Interactive Auto を検討
 
 ### 4. **ポートフォリオサイト**
 - **選択肢**: Blazor WebAssembly Standalone
@@ -170,6 +187,12 @@
 - **選択肢**: Blazor WebAssembly Standalone
 - **CDN で配信**: コスト削減
 - **シンプルな SPA**: サーバーレス
+
+### 6. **Interactive Auto を選択すべき場面**
+- **エンタープライズアプリケーション**で、開発・運用チームが充実している
+- **頻繁に利用されるアプリケーション**で、UX への投資対効果が高い
+- **長期運用が前提**で、初期投資コストを回収できる見込みがある
+- **技術的負債を管理できる体制**が整っている
 
 ## 注意点
 
@@ -185,6 +208,13 @@
 - WebAssembly や Auto モードを使用する場合、`.Client` プロジェクトが必要
 - WebAssembly コンポーネントは `.Client` プロジェクトに配置
 - Blazor WebAssembly Standalone は単一プロジェクト構成
+- **Interactive Auto の場合**: Server と Client の両方のプロジェクトを管理する必要があり、依存関係の管理が複雑化
+
+### 4. **Interactive Auto の実装コスト**
+- **開発時間**: 単一モードの約2倍の実装時間が必要
+- **テスト工数**: Server と WebAssembly の両方での動作確認が必要
+- **保守性**: 2つの実行環境での問題の切り分けと対応が必要
+- **チーム要件**: Server 側と Client 側の両方の技術スタックに精通したメンバーが必要
 
 ## 参考ドキュメント
 
