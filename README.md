@@ -320,13 +320,32 @@ Interactive Server、Interactive WebAssembly、Interactive Auto の3つのモー
 ```
 
 #### カスタムレンダーモード（省略記法）
-頻繁に使用する場合は、`Components/_Imports.razor` で省略記法を定義：
+頻繁に使用する場合は、カスタムクラスを作成して省略記法を定義：
+
+**1. カスタムクラスを作成**（例：`CustomRenderModes.cs`）：
 ```csharp
-public static IComponentRenderMode InteractiveServerWithoutPrerendering { get; } = 
-    new InteractiveServerRenderMode(prerender: false);
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
+
+public static class CustomRenderModes
+{
+    public static IComponentRenderMode InteractiveServerWithoutPrerendering { get; } = 
+        new InteractiveServerRenderMode(prerender: false);
+        
+    public static IComponentRenderMode InteractiveWebAssemblyWithoutPrerendering { get; } = 
+        new InteractiveWebAssemblyRenderMode(prerender: false);
+        
+    public static IComponentRenderMode InteractiveAutoWithoutPrerendering { get; } = 
+        new InteractiveAutoRenderMode(prerender: false);
+}
 ```
 
-使用例：
+**2. `Components/_Imports.razor` で using を追加**：
+```razor
+@using static CustomRenderModes
+```
+
+**3. 使用例**：
 ```razor
 @rendermode InteractiveServerWithoutPrerendering
 ```
