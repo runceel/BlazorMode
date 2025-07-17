@@ -91,47 +91,106 @@
 
 ## 選択フロー
 
+### 1. Blazor WebAssembly Standalone vs Blazor Web App の判断
+
 ```mermaid
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor': '#2c3e50', 'primaryTextColor': '#ecf0f1', 'primaryBorderColor': '#3498db', 'lineColor': '#ecf0f1', 'secondaryColor': '#34495e', 'tertiaryColor': '#4a4a4a'}}}%%
 flowchart TD
-    Start([アプリケーションを作成したい]) --> ServerChoice{サーバーが必要？}
+    Start([アプリケーションを作成したい]) --> Server{サーバーが必要？}
     
-    ServerChoice -->|サーバーが不要<br/>静的ホスティングのみ| Standalone[Blazor WebAssembly<br/>Standalone]
+    Server -->|サーバーが不要| Hosting{ホスティング方法は？}
+    Server -->|サーバーが必要| BlazorWebApp[Blazor Web App]
     
-    ServerChoice -->|サーバーありの<br/>Web アプリケーション| Interactive{インタラクティブ機能が必要？}
+    Hosting -->|静的サイトホスティング<br/>CDN配信| Static{オフライン動作が必要？}
+    Hosting -->|サーバーありホスティング| BlazorWebApp
     
-    Interactive -->|インタラクティブ機能が不要| StaticSSR[Static SSR]
+    Static -->|オフライン動作が必要| Standalone[Blazor WebAssembly<br/>Standalone]
+    Static -->|オフライン動作が不要| BlazorWebApp
     
-    Interactive -->|インタラクティブ機能が必要| RenderMode{レンダーモードの選択}
-    
-    RenderMode -->|単一のレンダーモードで統一したい| GlobalMode{グローバルモードの選択}
-    
-    GlobalMode -->|サーバーリソース重視<br/>セキュリティ重視| ServerGlobal[Interactive Server<br/>グローバル]
-    
-    GlobalMode -->|オフライン対応<br/>サーバー負荷軽減| WasmGlobal[Interactive WebAssembly<br/>グローバル]
-    
-    GlobalMode -->|最適なUX<br/>初回速度 + 継続性能| AutoGlobal[Interactive Auto<br/>グローバル]
-    
-    RenderMode -->|ページごとに最適化したい| MixedMode[Blazor Web App<br/>混在モード]
-    
-    MixedMode --> StaticPage[静的ページ → Static SSR]
-    MixedMode --> DBPage[DB操作ページ → Interactive Server]
-    MixedMode --> OfflinePage[オフライン対応ページ → Interactive WebAssembly]
-    MixedMode --> GeneralPage[汎用ページ → Interactive Auto]
-    
-    %% 警告の追加
-    AutoGlobal -.->|⚠️ 注意| CostWarning[開発・運用コストが高い<br/>実装難易度が大幅に上がる]
-    GeneralPage -.->|⚠️ 注意| CostWarning
+    %% 補足情報
+    Standalone -.-> StandaloneFeatures[✓ 静的ファイル配信<br/>✓ CDN対応<br/>✓ オフライン動作<br/>✓ PWA対応<br/>✗ 初期読み込み時間が長い<br/>✗ .NET API制限あり]
+    BlazorWebApp -.-> WebAppFeatures[✓ サーバーリソース活用<br/>✓ 完全な.NET API<br/>✓ 高速な初期読み込み<br/>✓ 柔軟なレンダーモード<br/>✗ サーバー必要<br/>✗ 常時接続必要]
     
     %% スタイリング
-    classDef warning fill:#fff2cc,stroke:#d6b656,stroke-width:2px
-    classDef autoMode fill:#ffe6e6,stroke:#ff6b6b,stroke-width:2px
-    classDef decision fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
-    classDef endpoint fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    classDef decision fill:#2c3e50,stroke:#3498db,stroke-width:2px,color:#3498db
+    classDef endpoint fill:#2c4a2c,stroke:#27ae60,stroke-width:2px,color:#27ae60
+    classDef info fill:#4a4a4a,stroke:#f39c12,stroke-width:2px,color:#f39c12
+    classDef start fill:#34495e,stroke:#ecf0f1,stroke-width:2px,color:#ecf0f1
     
-    class CostWarning warning
-    class AutoGlobal,GeneralPage autoMode
-    class ServerChoice,Interactive,RenderMode,GlobalMode decision
-    class Standalone,StaticSSR,ServerGlobal,WasmGlobal,StaticPage,DBPage,OfflinePage endpoint
+    class Server,Hosting,Static decision
+    class Standalone,BlazorWebApp endpoint
+    class StandaloneFeatures,WebAppFeatures info
+    class Start start
+```
+
+### 2. Blazor Web App でのグローバル vs ページ単位インタラクティブ性の判断
+
+```mermaid
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor': '#2c3e50', 'primaryTextColor': '#ecf0f1', 'primaryBorderColor': '#3498db', 'lineColor': '#ecf0f1', 'secondaryColor': '#34495e', 'tertiaryColor': '#4a4a4a'}}}%%
+flowchart TD
+    Start([Blazor Web App を選択]) --> Interactive{インタラクティブ機能が必要？}
+    
+    Interactive -->|インタラクティブ機能が不要| StaticSSR[Static SSR のみ]
+    Interactive -->|インタラクティブ機能が必要| AppType{アプリケーションの特性は？}
+    
+    AppType -->|単一機能<br/>一貫性重視| Global[グローバル<br/>インタラクティブ性]
+    AppType -->|複数機能<br/>最適化重視| PerPage[ページ単位<br/>インタラクティブ性]
+    
+    %% 補足情報
+    StaticSSR -.-> StaticFeatures[✓ 最高速度<br/>✓ SEO最適<br/>✓ 管理が簡単<br/>✗ イベント処理不可]
+    Global -.-> GlobalFeatures[✓ 管理が簡単<br/>✓ 一貫性のあるUX<br/>✓ 単一機能アプリに最適<br/>✗ 柔軟性に欠ける]
+    PerPage -.-> PerPageFeatures[✓ ページごとに最適化<br/>✓ 柔軟性が高い<br/>✓ 静的ページと混在可能<br/>✗ 管理が複雑<br/>✗ 実装コストが高い]
+    
+    %% スタイリング
+    classDef decision fill:#2c3e50,stroke:#3498db,stroke-width:2px,color:#3498db
+    classDef endpoint fill:#2c4a2c,stroke:#27ae60,stroke-width:2px,color:#27ae60
+    classDef info fill:#4a4a4a,stroke:#f39c12,stroke-width:2px,color:#f39c12
+    classDef start fill:#34495e,stroke:#ecf0f1,stroke-width:2px,color:#ecf0f1
+    
+    class Interactive,AppType decision
+    class StaticSSR,Global,PerPage endpoint
+    class StaticFeatures,GlobalFeatures,PerPageFeatures info
+    class Start start
+```
+
+### 3. インタラクティブレンダーモードの選択
+
+```mermaid
+%%{init: {'theme':'dark', 'themeVariables': { 'primaryColor': '#2c3e50', 'primaryTextColor': '#ecf0f1', 'primaryBorderColor': '#3498db', 'lineColor': '#ecf0f1', 'secondaryColor': '#34495e', 'tertiaryColor': '#4a4a4a'}}}%%
+flowchart TD
+    Start([インタラクティブレンダーモードを選択]) --> Priority{優先する要素は？}
+    
+    Priority -->|サーバーリソース重視<br/>セキュリティ重視| Server[Interactive Server]
+    Priority -->|オフライン対応<br/>クライアント処理重視| WASM[Interactive WebAssembly]
+    Priority -->|最適なUX<br/>初回速度+継続性能| AutoCheck{実装・運用コストを<br/>許容できる？}
+    
+    AutoCheck -->|はい<br/>十分なリソースあり| Auto[Interactive Auto]
+    AutoCheck -->|いいえ<br/>リソース不足| Fallback{代替案を検討}
+    
+    Fallback -->|サーバー重視| Server
+    Fallback -->|クライアント重視| WASM
+    
+    %% 警告
+    Auto -.->|⚠️ 注意| AutoWarning[実装コストが2倍<br/>Server+WASM両対応必要<br/>デバッグが複雑<br/>運用コストが高い]
+    
+    %% 補足情報
+    Server -.-> ServerFeatures[✓ 完全な.NET API<br/>✓ サーバーリソース活用<br/>✓ セキュリティ<br/>✓ 実装が簡単<br/>✗ 常時接続必要]
+    WASM -.-> WASMFeatures[✓ オフライン動作<br/>✓ クライアント処理<br/>✓ サーバー負荷軽減<br/>✗ 初期読み込み時間<br/>✗ .NET API制限]
+    
+    %% スタイリング
+    classDef decision fill:#2c3e50,stroke:#3498db,stroke-width:2px,color:#3498db
+    classDef endpoint fill:#2c4a2c,stroke:#27ae60,stroke-width:2px,color:#27ae60
+    classDef autoMode fill:#4a2c2c,stroke:#ff6b6b,stroke-width:2px,color:#ff6b6b
+    classDef warning fill:#4a4a4a,stroke:#ffd700,stroke-width:2px,color:#ffd700
+    classDef info fill:#4a4a4a,stroke:#f39c12,stroke-width:2px,color:#f39c12
+    classDef start fill:#34495e,stroke:#ecf0f1,stroke-width:2px,color:#ecf0f1
+    
+    class Priority,AutoCheck,Fallback decision
+    class Server,WASM endpoint
+    class Auto autoMode
+    class AutoWarning warning
+    class ServerFeatures,WASMFeatures info
+    class Start start
 ```
 
 ## インタラクティブ性の適用範囲
@@ -218,7 +277,14 @@ flowchart TD
 
 ## 参考ドキュメント
 
+### 公式ドキュメント
 - [ASP.NET Core Blazor render modes](https://learn.microsoft.com/en-us/aspnet/core/blazor/components/render-modes?view=aspnetcore-9.0)
 - [ASP.NET Core Blazor hosting models](https://learn.microsoft.com/en-us/aspnet/core/blazor/hosting-models?view=aspnetcore-9.0)
 - [Tooling for ASP.NET Core Blazor](https://learn.microsoft.com/en-us/aspnet/core/blazor/tooling?view=aspnetcore-9.0)
 - [ASP.NET Core Blazor project structure](https://learn.microsoft.com/en-us/aspnet/core/blazor/project-structure?view=aspnetcore-9.0)
+
+### 選択基準とベストプラクティス
+- [Choose Between Traditional Web Apps and Single Page Apps (SPAs)](https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/choose-between-traditional-web-and-single-page-apps)
+- [ASP.NET Core Blazor](https://learn.microsoft.com/en-us/aspnet/core/blazor/?view=aspnetcore-9.0)
+- [Build a .NET MAUI Blazor Hybrid app with a Blazor Web App](https://learn.microsoft.com/en-us/aspnet/core/blazor/hybrid/tutorials/maui-blazor-web-app?view=aspnetcore-9.0)
+- [Build a Blazor movie database app (Part 8 - Add interactivity)](https://learn.microsoft.com/en-us/aspnet/core/blazor/tutorials/movie-database-app/part-8?view=aspnetcore-9.0)
