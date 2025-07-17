@@ -91,6 +91,12 @@
 
 ## 選択フロー
 
+以下のフローチャートは、Blazor アプリケーションの選択を3段階に分けて示しています。まずアプリケーションの基本的な構成を決定し、次にインタラクティブ性の適用範囲を選択し、最後に具体的なレンダーモードを決定します。
+
+> **💡 インタラクティブ機能とは？**
+> - **あり**: ボタンクリック、フォーム入力、リアルタイム更新など、ユーザーの操作に応じて画面が動的に変化する機能
+> - **なし**: 静的なHTMLページと同様で、リンクやフォーム送信による画面遷移のみ可能
+
 ### 1. Blazor WebAssembly Standalone vs Blazor Web App の判断
 
 ```mermaid
@@ -130,8 +136,8 @@ flowchart TD
 flowchart TD
     Start([Blazor Web App を選択]) --> Interactive{インタラクティブ機能が必要？}
     
-    Interactive -->|インタラクティブ機能が不要| StaticSSR[Static SSR のみ]
-    Interactive -->|インタラクティブ機能が必要| AppType{アプリケーションの特性は？}
+    Interactive -->|インタラクティブ機能が不要<br/>📝 静的コンテンツのみ| StaticSSR[Static SSR のみ]
+    Interactive -->|インタラクティブ機能が必要<br/>📝 動的な画面更新が必要| AppType{アプリケーションの特性は？}
     
     AppType -->|単一機能<br/>一貫性重視| Global[グローバル<br/>インタラクティブ性]
     AppType -->|複数機能<br/>最適化重視| PerPage[ページ単位<br/>インタラクティブ性]
