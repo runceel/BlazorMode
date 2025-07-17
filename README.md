@@ -281,6 +281,61 @@ flowchart TD
 - **保守性**: 2つの実行環境での問題の切り分けと対応が必要
 - **チーム要件**: Server 側と Client 側の両方の技術スタックに精通したメンバーが必要
 
+### 5. **プリレンダリングの注意点**
+Interactive Server、Interactive WebAssembly、Interactive Auto の3つのモードは、**デフォルトでプリレンダリングが有効**になっています。
+
+**プリレンダリングとは：**
+- サーバー側で最初にHTMLを生成し、クライアント側で再度レンダリングを行う仕組み
+- SEO最適化には有効だが、処理が2重実行される場合がある
+
+**注意が必要な場面：**
+- 業務アプリケーションなど、SEOが不要なアプリケーション
+- 初期化処理が重い場合（データベースアクセス、Web API呼び出しなど）
+- クライアント専用のサービス（WebAssembly専用API）を使用する場合
+
+**プリレンダリングの無効化方法：**
+
+#### コンポーネントインスタンスでの無効化
+```razor
+<!-- Interactive Server -->
+<MyComponent @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+
+<!-- Interactive WebAssembly -->
+<MyComponent @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
+
+<!-- Interactive Auto -->
+<MyComponent @rendermode="new InteractiveAutoRenderMode(prerender: false)" />
+```
+
+#### コンポーネント定義での無効化
+```razor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+```
+
+#### アプリケーション全体での無効化
+`Components/App.razor` で設定：
+```razor
+<Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+<HeadOutlet @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+```
+
+#### カスタムレンダーモード（省略記法）
+頻繁に使用する場合は、`Components/_Imports.razor` で省略記法を定義：
+```csharp
+public static IComponentRenderMode InteractiveServerWithoutPrerendering { get; } = 
+    new InteractiveServerRenderMode(prerender: false);
+```
+
+使用例：
+```razor
+@rendermode InteractiveServerWithoutPrerendering
+```
+
+**⚠️ 注意点：**
+- プリレンダリングを無効化すると、SEO効果が低下する
+- 初期表示が遅くなる可能性がある
+- 業務アプリケーションではSEOが不要な場合が多いため、パフォーマンスを優先してプリレンダリングを無効化することを推奨
+
 ## 参考ドキュメント
 
 ### 公式ドキュメント
